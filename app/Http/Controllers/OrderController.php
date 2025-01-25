@@ -2,58 +2,112 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
-use App\Models\Product;
+use App\Services\Order\OrderServiceInterface;
+use App\Exceptions\OrderNotFoundException;
+use App\Exceptions\ProductNotFoundException;
+use App\Exceptions\InsufficientStockException;
 use Illuminate\Http\Request;
 
-class OrderController extends Controller
+class OrderController extends BaseController
 {
+    protected $orderService;
+
+    public function __construct(OrderServiceInterface $orderService)
+    {
+        $this->orderService = $orderService;
+    }
+
+    // Tüm siparişleri listeleme
     public function index()
     {
-        return Order::all();
+        try {
+            $orders = $this->orderService->getAllOrders();
+            return response()->json($orders);
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Sipariş getirilirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 
+    // Belirli bir siparişi görüntüleme
+    public function show($id)
+    {
+        try {
+            $order = $this->orderService->getOrderById($id);
+            return response()->json($order);
+        } catch (OrderNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['error_id' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Sipariş getirilirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
+    }
+
+    // Yeni sipariş ekleme
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'items' => 'required|array',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric',
-            'items.*.total' => 'required|numeric',
-            'total' => 'required|numeric',
-        ]);
+        try {
+            $data = $this->validateRequest($request, [
+                'customerId' => 'required|exists:customers,id',
+                'items' => 'required|array',
+                'items.*.productId' => 'required|exists:products,id',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.unitPrice' => 'required|numeric',
+                'items.*.total' => 'required|numeric',
+                'total' => 'required|numeric',
+            ]);
 
-        // Stok kontrolü
-        foreach ($data['items'] as $item) {
-            $product = Product::find($item['product_id']);
-            if ($product->stock < $item['quantity']) {
-                return response()->json(['error' => 'Not enough stock for product ID: ' . $item['product_id']], 400);
-            }
+            $order = $this->orderService->createOrder($data);
+            return response()->json($order, 201);
+        } catch (ProductNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['productId' => $e->getId()]
+            );
+        } catch (InsufficientStockException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                400,
+                ['productId' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Sipariş oluşturulurken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
         }
-
-        // Sipariş oluştur
-        $order = Order::create($data);
-
-        // Stok güncelleme
-        foreach ($data['items'] as $item) {
-            $product = Product::find($item['product_id']);
-            $product->stock -= $item['quantity'];
-            $product->save();
-        }
-
-        return response()->json($order, 201);
     }
 
-    public function show(Order $order)
+    // Sipariş silme
+    public function destroy($id)
     {
-        return $order;
-    }
-
-    public function destroy(Order $order)
-    {
-        $order->delete();
-        return response()->noContent();
+        try {
+            $this->orderService->deleteOrder($id);
+            return response()->noContent();
+        } catch (OrderNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['error_id' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Sipariş silinirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 }

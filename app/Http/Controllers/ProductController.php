@@ -2,56 +2,123 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Services\Product\ProductServiceInterface;
+use App\Exceptions\ProductNotFoundException;
 use Illuminate\Http\Request;
 
-class ProductController extends Controller
+class ProductController extends BaseController
 {
+    protected $productService;
+
+    public function __construct(ProductServiceInterface $productService)
+    {
+        $this->productService = $productService;
+    }
+
     // Tüm ürünleri listeleme
     public function index()
     {
-        $products = Product::all();
-        return response()->json($products);
+        try {
+            $products = $this->productService->getAllProducts();
+            return response()->json($products);
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Ürün getirilirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
+    }
+
+    // Belirli bir ürünü görüntüleme
+    public function show($id)
+    {
+        try {
+            $product = $this->productService->getProductById($id);
+            return response()->json($product);
+        } catch (ProductNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['error_id' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Ürün getirilirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 
     // Yeni ürün ekleme
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'required|integer',
-            'price' => 'required|numeric',
-            'stock' => 'required|integer',
-        ]);
+        try {
+            $data = $this->validateRequest($request, [
+                'name' => 'required|string|max:255',
+                'category' => 'required|integer',
+                'price' => 'required|numeric',
+                'stock' => 'required|integer',
+            ]);
 
-        $product = Product::create($data);
-        return response()->json($product, 201);
-    }
-
-    // Belirli bir ürünü görüntüleme
-    public function show(Product $product)
-    {
-        return response()->json($product);
+            $product = $this->productService->createProduct($data);
+            return response()->json($product, 201);
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Ürün oluşturulurken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 
     // Ürün bilgilerini güncelleme
-    public function update(Request $request, Product $product)
+    public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'category' => 'sometimes|integer',
-            'price' => 'sometimes|numeric',
-            'stock' => 'sometimes|integer',
-        ]);
+        try {
+            $data = $this->validateRequest($request, [
+                'name' => 'sometimes|string|max:255',
+                'category' => 'sometimes|integer',
+                'price' => 'sometimes|numeric',
+                'stock' => 'sometimes|integer',
+            ]);
 
-        $product->update($data);
-        return response()->json($product);
+            $product = $this->productService->updateProduct($id, $data);
+            return response()->json($product);
+        } catch (ProductNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['error_id' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Ürün güncellenirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 
     // Ürün silme
-    public function destroy(Product $product)
+    public function destroy($id)
     {
-        $product->delete();
-        return response()->noContent();
+        try {
+            $this->productService->deleteProduct($id);
+            return response()->noContent();
+        } catch (ProductNotFoundException $e) {
+            return $this->jsonError(
+                $e->getMessage(),
+                404,
+                ['error_id' => $e->getId()]
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError(
+                'Ürün silinirken bir hata oluştu.',
+                500,
+                [$e->getMessage()]
+            );
+        }
     }
 }
