@@ -20,8 +20,8 @@ class TwentyPercentCheapestCategoryOneRule implements DiscountRuleInterface
             $discountAmount = $cheapestItem * 0.20;
             $discounts[] = [
                 'discountReason' => '20_PERCENT_CHEAPEST_CATEGORY_1',
-                'discountAmount' => number_format($discountAmount, 2),
-                'subtotal' => number_format($subtotal - $discountAmount, 2)
+                'discountAmount' => number_format($discountAmount, 2, '.', ''),
+                'subtotal' => number_format($subtotal - $discountAmount, 2, '.', '')
             ];
         }
         return $discounts;

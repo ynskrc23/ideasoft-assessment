@@ -3,7 +3,8 @@
 namespace App\Services\DiscountRules;
 
 use App\Models\Order;
-use App\Services\DiscountRules\DiscountRuleInterface;
+use App\Services\Discount\DiscountRuleInterface;
+use Illuminate\Support\Facades\Cache;
 
 class DiscountService
 {
@@ -16,11 +17,22 @@ class DiscountService
 
     public function calculateDiscounts(Order $order): array
     {
+        // Cache anahtarını oluştur (örneğin, sipariş ID'si kullanılabilir)
+        $cacheKey = 'order_discounts_' . $order->id;
+
+        // Cache'ten veriyi al
+        $cachedResult = Cache::get($cacheKey);
+
+        // Eğer cache'te veri varsa, cache'ten döndür
+        if ($cachedResult) {
+            return $cachedResult;
+        }
+
+        // Cache'te veri yoksa, indirimleri hesapla
         $discounts = [];
         $totalDiscount = 0;
         $subtotal = $order->total;
 
-        // Sıralanmış items üzerinde indirim kurallarını uygula
         foreach ($this->rules as $rule) {
             $ruleDiscounts = $rule->calculateDiscount($order, $subtotal);
             foreach ($ruleDiscounts as $discount) {
@@ -30,11 +42,16 @@ class DiscountService
             }
         }
 
-        return [
+        $result = [
             'orderId' => $order->id,
             'discounts' => $discounts,
-            'totalDiscount' => number_format($totalDiscount, 2),
-            'discountedTotal' => number_format($subtotal, 2)
+            'totalDiscount' => number_format($totalDiscount, 2, '.', ''),
+            'discountedTotal' => number_format($subtotal, 2, '.', '')
         ];
+
+        // Sonucu cache'e kaydet (örneğin, 60 dakika boyunca cache'te tut)
+        Cache::put($cacheKey, $result, now()->addMinutes(60));
+
+        return $result;
     }
 }

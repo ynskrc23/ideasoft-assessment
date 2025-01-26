@@ -17,8 +17,8 @@ class BuyFiveGetOneFreeRule implements DiscountRuleInterface
                 $discountAmount = $freeItems * $item['unitPrice'];
                 $discounts[] = [
                     'discountReason' => 'BUY_5_GET_1',
-                    'discountAmount' => number_format($discountAmount, 2),
-                    'subtotal' => number_format($subtotal - $discountAmount, 2)
+                    'discountAmount' => number_format($discountAmount, 2, '.', ''),
+                    'subtotal' => number_format($subtotal - $discountAmount, 2, '.', '')
                 ];
             }
         }
