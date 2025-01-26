@@ -117,4 +117,4 @@ Projeyi geliştirirken aşağıdaki komutları kullanabilirsiniz:
 
 API'leri test etmek için Postman Collection'ımızı kullanabilirsiniz:
 
-[Postman Collection Linki](IDEASOFT-APP.postman_collection)
+[Postman Collection Linki](https://github.com/ynskrc23/ideasoft-assessment/blob/master/IDEASOFT-APP.postman_collection)
